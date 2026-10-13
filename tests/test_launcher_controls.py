@@ -106,11 +106,18 @@ class GameFilesTest(unittest.TestCase):
             (folder / 'sce_module').mkdir()
             (folder / 'sce_module/libSceFios2.prx').write_bytes(b'x')
             self.assertEqual(launcher.missing_game_files(folder),
-                             ['sce_sys/param.sfo', 'sce_module/libc.prx'])
+                             ['eboot.bin', 'sce_sys/param.sfo', 'sce_module/libc.prx'])
             (folder / 'sce_sys').mkdir()
+            (folder / 'eboot.bin').write_bytes(b'x')
             (folder / 'sce_sys/param.sfo').write_bytes(b'x')
             (folder / 'sce_module/libc.prx').write_bytes(b'x')
             self.assertEqual(launcher.missing_game_files(folder), [])
+            # Empty files (a placeholder made by hand, a copy that failed) count as missing: the
+            # game cannot start from them, and the message says which they are.
+            (folder / 'eboot.bin').write_bytes(b'')
+            (folder / 'sce_sys/param.sfo').write_bytes(b'')
+            self.assertEqual(launcher.missing_game_files(folder),
+                             ['eboot.bin (empty)', 'sce_sys/param.sfo (empty)'])
 
 
 class GpuChoiceTest(unittest.TestCase):

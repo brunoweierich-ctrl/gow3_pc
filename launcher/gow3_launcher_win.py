@@ -439,12 +439,20 @@ def linux_tools():
                 glob.glob(os.path.join(d, '*angoHud*.json')) for d in VULKAN_LAYER_DIRS)}
 
 
-REQUIRED_GAME_FILES = ('sce_sys/param.sfo', 'sce_module/libc.prx', 'sce_module/libSceFios2.prx')
+REQUIRED_GAME_FILES = ('eboot.bin', 'sce_sys/param.sfo', 'sce_module/libc.prx', 'sce_module/libSceFios2.prx')
 
 
 def missing_game_files(folder):
-    """Files the port loads from the dump that the folder lacks (an incomplete dump)."""
-    return [name for name in REQUIRED_GAME_FILES if not (Path(folder) / name).is_file()]
+    """Files the port loads from the dump that the folder lacks or holds empty (an incomplete
+    dump, or a placeholder made by hand), each named as shown to the player."""
+    missing = []
+    for name in REQUIRED_GAME_FILES:
+        path = Path(folder) / name
+        if not path.is_file():
+            missing.append(name)
+        elif path.stat().st_size == 0:
+            missing.append(f'{name} (empty)')
+    return missing
 
 
 DESKTOP_MARKER = 'X-GOW3-Integration=true'
@@ -1682,7 +1690,7 @@ class Launcher:
             return
         missing = missing_game_files(self.app['game_dir'])
         if missing:
-            self.messagebox.showerror(APP_NAME, _('The game dump is incomplete. Missing files:\n\n{}\n\n'
+            self.messagebox.showerror(APP_NAME, _('The game dump is incomplete. Missing or empty files:\n\n{}\n\n'
                                                   'Dump the game again, or copy these files from a complete dump.')
                                       .format('\n'.join(missing)))
             self.show('game')

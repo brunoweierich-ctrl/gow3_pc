@@ -71,6 +71,8 @@ def parse_self(data):
 
 
 def sfo(data):
+    if not data:
+        raise ValueError('param.sfo is empty (0 bytes): the game files are incomplete')
     magic, version, keys, values, count = unpack('<4sIIII', data, 0)
     if magic != b'\0PSF':
         raise ValueError('bad SFO signature')
@@ -127,6 +129,8 @@ def inspect_libc(path):
 
 def prepare(game, out):
     source = (game / 'eboot.bin').read_bytes()
+    if not source:
+        raise ValueError('eboot.bin is empty (0 bytes): the game files are incomplete')
     elf, header, ph, segments, missing = parse_self(source)
     loads = [p for p in ph if p['type'] in (1, 0x61000010)]
     def mapped(addr, size=8):

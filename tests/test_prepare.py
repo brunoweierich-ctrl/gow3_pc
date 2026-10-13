@@ -3,7 +3,7 @@ import struct
 import unittest
 import tempfile
 from pathlib import Path
-from prepare import parse_self, inspect_libc, nid, write_report
+from prepare import parse_self, inspect_libc, nid, prepare, sfo, write_report
 
 
 def fixture():
@@ -82,6 +82,17 @@ class SelfTests(unittest.TestCase):
         struct.pack_into('<Q', data, 32, 0x100800)
         with self.assertRaisesRegex(ValueError, 'segment index'):
             parse_self(data)
+
+    def test_empty_game_files_are_named(self):
+        # An empty eboot.bin (a broken copy, or a placeholder made by hand) failed as
+        # "out of bounds: 0x0+0x4 / 0x0", which names neither the file nor the cause.
+        with tempfile.TemporaryDirectory() as tmp:
+            game = Path(tmp)
+            (game / 'eboot.bin').write_bytes(b'')
+            with self.assertRaisesRegex(ValueError, 'eboot.bin is empty'):
+                prepare(game, game / 'out')
+        with self.assertRaisesRegex(ValueError, 'param.sfo is empty'):
+            sfo(b'')
 
 
 if __name__ == '__main__':
