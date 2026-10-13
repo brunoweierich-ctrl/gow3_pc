@@ -882,6 +882,9 @@ EXTRA = {
         'The shortcut "{}" was added to Steam (accounts: {}), with its icon, capsules, background and logo. Open Steam to see it in the library.': 'O atalho "{}" foi adicionado à Steam (contas: {}), com ícone, capas, fundo e logotipo. Abra a Steam para vê-lo na biblioteca.',
         'Menu entry and icon (AppImage)': 'Entrada no menu e ícone (AppImage)',
         'Creates gow3.desktop in ~/.local/share/applications so the launcher and the game show their icon in the dock and the menu. Turning it off removes the entry.': 'Cria o gow3.desktop em ~/.local/share/applications para o launcher e o jogo mostrarem o ícone no dock e no menu. Desligar remove a entrada.',
+        'The game dump is incomplete. Missing or empty files:\n\n{}\n\nDump the game again, or copy these files from a complete dump.': 'O dump do jogo está incompleto. Arquivos faltando ou vazios:\n\n{}\n\nFaça o dump do jogo de novo, ou copie esses arquivos de um dump completo.',
+        'The game files look like a PKG extraction: the system files (param.sfo, icon0.png, pic1.png) are in\n\n{}\n\nCopy them into the game\'s sce_sys folder now? Files already there are kept.': 'Os arquivos do jogo parecem vir de um PKG extraído: os arquivos de sistema (param.sfo, icon0.png, pic1.png) estão em\n\n{}\n\nCopiar para a pasta sce_sys do jogo agora? Os arquivos que já estão lá são mantidos.',
+        'Could not copy the files: {}': 'Não foi possível copiar os arquivos: {}',
     },
 }
 

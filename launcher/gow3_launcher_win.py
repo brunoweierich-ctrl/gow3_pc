@@ -455,6 +455,40 @@ def missing_game_files(folder):
     return missing
 
 
+def system_files_beside(game):
+    """PKG extractors write the system files (param.sfo, icon0.png, pic1.png, trophy/) to Sc0/
+    beside the game files (Image0/), while the port reads them from the game's sce_sys/: the
+    sibling folder holding a param.sfo, while the game has none."""
+    game = Path(game)
+    if (game / 'sce_sys/param.sfo').is_file():
+        return None
+    try:
+        for sibling in sorted(game.parent.iterdir()):
+            if (sibling.is_dir() and (sibling / 'param.sfo').is_file()
+                    and sibling.resolve() != game.resolve()):
+                return sibling
+    except OSError:
+        pass
+    return None
+
+
+def adopt_system_files(source, game):
+    """Copies the files of `source` (an Sc0/ folder) into <game>/sce_sys, keeping every file the
+    game already has there; returns the relative names copied."""
+    source, target = Path(source), Path(game) / 'sce_sys'
+    copied = []
+    for directory, _folders, files in os.walk(source):
+        for name in sorted(files):
+            relative = (Path(directory) / name).relative_to(source)
+            destination = target / relative
+            if destination.exists():
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relative, destination)
+            copied.append(relative.as_posix())
+    return copied
+
+
 DESKTOP_MARKER = 'X-GOW3-Integration=true'
 
 
@@ -1689,6 +1723,17 @@ class Launcher:
             self.show('game')
             return
         missing = missing_game_files(self.app['game_dir'])
+        source = system_files_beside(self.app['game_dir']) if 'sce_sys/param.sfo' in missing else None
+        if source and self.messagebox.askyesno(APP_NAME, _(
+                'The game files look like a PKG extraction: the system files (param.sfo, icon0.png, pic1.png) '
+                'are in\n\n{}\n\nCopy them into the game\'s sce_sys folder now? Files already there are kept.')
+                .format(source)):
+            try:
+                adopt_system_files(source, self.app['game_dir'])
+            except OSError as error:
+                self.messagebox.showerror(APP_NAME, _('Could not copy the files: {}').format(error))
+            self.game_changed()
+            missing = missing_game_files(self.app['game_dir'])
         if missing:
             self.messagebox.showerror(APP_NAME, _('The game dump is incomplete. Missing or empty files:\n\n{}\n\n'
                                                   'Dump the game again, or copy these files from a complete dump.')

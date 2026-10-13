@@ -119,6 +119,70 @@ class GameFilesTest(unittest.TestCase):
             self.assertEqual(launcher.missing_game_files(folder),
                              ['eboot.bin (empty)', 'sce_sys/param.sfo (empty)'])
 
+    def test_system_files_beside_a_pkg_extraction(self):
+        # PKG extractors keep the system files (param.sfo, icon0.png, pic1.png, trophy/) in Sc0/
+        # next to the game files in Image0/; the port reads them from the game's sce_sys/.
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            game = root / 'Image0'
+            (game / 'sce_sys').mkdir(parents=True)
+            (game / 'sce_sys/playgo-chunk.dat').write_bytes(b'game')
+            (root / 'Sc1').mkdir()  # a sibling without param.sfo is not the one
+            self.assertIsNone(launcher.system_files_beside(game))
+            (root / 'Sc0/trophy').mkdir(parents=True)
+            (root / 'Sc0/param.sfo').write_bytes(b'sfo')
+            (root / 'Sc0/icon0.png').write_bytes(b'icon')
+            (root / 'Sc0/playgo-chunk.dat').write_bytes(b'other')
+            (root / 'Sc0/trophy/trophy00.trp').write_bytes(b'trophies')
+            self.assertEqual(launcher.system_files_beside(game), root / 'Sc0')
+            self.assertEqual(launcher.adopt_system_files(root / 'Sc0', game),
+                             ['icon0.png', 'param.sfo', 'trophy/trophy00.trp'])
+            self.assertEqual((game / 'sce_sys/param.sfo').read_bytes(), b'sfo')
+            self.assertEqual((game / 'sce_sys/trophy/trophy00.trp').read_bytes(), b'trophies')
+            # The game's own files are never replaced, and once param.sfo is there nothing is offered.
+            self.assertEqual((game / 'sce_sys/playgo-chunk.dat').read_bytes(), b'game')
+            self.assertIsNone(launcher.system_files_beside(game))
+            self.assertEqual(launcher.adopt_system_files(root / 'Sc0', game), [])
+
+    def test_play_offers_to_adopt_the_system_files(self):
+        from pathlib import Path
+        from unittest import mock
+
+        def launcher_app():
+            app = launcher.Launcher.__new__(launcher.Launcher)
+            app.process = None
+            app.app = {**launcher.APP_DEFAULTS, 'game_dir': 'D:/game/Image0'}
+            app.messagebox = mock.Mock()
+            for name in ('collect', 'show', 'set_log', 'game_changed', 'play_button', 'status'):
+                setattr(app, name, mock.Mock())
+            return app
+
+        for answer in (True, False):
+            app = launcher_app()
+            app.messagebox.askyesno.return_value = answer
+            # The second check runs after the copy, when the answer was yes.
+            checks = [['sce_sys/param.sfo'], []] if answer else [['sce_sys/param.sfo']]
+            with mock.patch.object(launcher, 'game_info', return_value=('God of War III', '01.02')), \
+                    mock.patch.object(launcher, 'missing_game_files', side_effect=checks), \
+                    mock.patch.object(launcher, 'system_files_beside', return_value=Path('D:/game/Sc0')), \
+                    mock.patch.object(launcher, 'adopt_system_files', return_value=['param.sfo']) as adopt, \
+                    mock.patch.object(launcher.subprocess, 'Popen', return_value=mock.Mock()) as start, \
+                    mock.patch.object(launcher, 'GameJob'), mock.patch.object(launcher.threading, 'Thread'):
+                app.play()
+            self.assertIn('D:\\game\\Sc0' if launcher.WINDOWS else 'D:/game/Sc0',
+                          app.messagebox.askyesno.call_args.args[1])
+            if answer:
+                adopt.assert_called_once_with(Path('D:/game/Sc0'), 'D:/game/Image0')
+                app.game_changed.assert_called_once()
+                app.messagebox.showerror.assert_not_called()
+                self.assertTrue(start.called)
+            else:
+                adopt.assert_not_called()
+                self.assertIn('sce_sys/param.sfo', app.messagebox.showerror.call_args.args[1])
+                self.assertFalse(start.called)
+
 
 class GpuChoiceTest(unittest.TestCase):
     def test_parse_gpu_list(self):
